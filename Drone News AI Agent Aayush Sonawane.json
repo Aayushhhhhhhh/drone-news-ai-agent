@@ -1,0 +1,281 @@
+{
+  "name": "Drone News AI Agent – Daily",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "8a6f5b09-172f-40bb-a35e-7fec73deeb53",
+      "name": "Schedule 9AM IST Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        4480,
+        1280
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=latest+drone+news&hl=en-IN&gl=IN&ceid=IN:en",
+        "options": {}
+      },
+      "id": "6a5d4578-6111-4d88-aa49-6eafc73a6331",
+      "name": "RSS Feed - Latest Drone News",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        4704,
+        1088
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=UAV+technology&hl=en-IN&gl=IN&ceid=IN:en",
+        "options": {}
+      },
+      "id": "17cd12be-c04c-48cb-9c85-02be3f952e77",
+      "name": "RSS Feed - UAV Technology",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        4704,
+        1280
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=DGCA+drones+India&hl=en-IN&gl=IN&ceid=IN:en",
+        "options": {}
+      },
+      "id": "1c363789-ec96-4ded-b6a8-e1ff6408525b",
+      "name": "RSS Feed - DGCA Drones India",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        4704,
+        1472
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merge all RSS items from all inputs\nconst allItems = [];\n\n// Collect all items from all input branches\nfor (const item of $input.all()) {\n  allItems.push(item.json);\n}\n\n// Sort by pubDate descending (most recent first)\nallItems.sort((a, b) => {\n  const dateA = new Date(a.pubDate || a.isoDate || 0);\n  const dateB = new Date(b.pubDate || b.isoDate || 0);\n  return dateB - dateA;\n});\n\n// Limit to 5 most recent articles\nconst topFive = allItems.slice(0, 5);\n\n// Return as array of items\nreturn topFive.map(item => ({ json: item }));"
+      },
+      "id": "c895167c-d745-4e8a-9b0b-61c89042b1e0",
+      "name": "Merge & Limit to 5 Articles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4928,
+        1280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter articles published within the last 24 hours\nconst now = new Date();\nconst twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));\n\nconst recentArticles = [];\n\nfor (const item of $input.all()) {\n  const articleDate = new Date(item.json.pubDate || item.json.isoDate);\n  \n  // Check if article was published within last 24 hours\n  if (articleDate >= twentyFourHoursAgo) {\n    recentArticles.push(item.json);\n  }\n}\n\n// Return filtered articles\nreturn recentArticles.map(item => ({ json: item }));"
+      },
+      "id": "9ed80efb-60fd-473b-9bd2-d2b1ed63acad",
+      "name": "Filter Articles ≤24h",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5600,
+        1280
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build HTML Email & JSON Output\nconst allItems = [];\n\n// Collect all items from input\nfor (const item of $input.all()) {\n  allItems.push(item.json);\n}\n\n// Build HTML email\nlet emailHtml = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Daily Drone News Digest</title>\n  <style>\n    body {\n      font-family: Arial, sans-serif;\n      line-height: 1.6;\n      color: #333;\n      max-width: 800px;\n      margin: 0 auto;\n      padding: 20px;\n      background-color: #f4f4f4;\n    }\n    .container {\n      background-color: #ffffff;\n      padding: 30px;\n      border-radius: 10px;\n      box-shadow: 0 2px 5px rgba(0,0,0,0.1);\n    }\n    .header {\n      text-align: center;\n      border-bottom: 3px solid #0066cc;\n      padding-bottom: 20px;\n      margin-bottom: 30px;\n    }\n    .header h1 {\n      color: #0066cc;\n      margin: 0;\n    }\n    .article {\n      margin-bottom: 40px;\n      padding-bottom: 30px;\n      border-bottom: 1px solid #e0e0e0;\n    }\n    .article:last-child {\n      border-bottom: none;\n    }\n    .article-title {\n      color: #0066cc;\n      font-size: 22px;\n      font-weight: bold;\n      margin-bottom: 15px;\n    }\n    .article-image {\n      width: 100%;\n      max-width: 600px;\n      height: auto;\n      border-radius: 8px;\n      margin-bottom: 15px;\n    }\n    .hook {\n      font-style: italic;\n      color: #555;\n      font-size: 16px;\n      margin-bottom: 15px;\n      padding-left: 15px;\n      border-left: 3px solid #0066cc;\n    }\n    .summary {\n      margin-bottom: 15px;\n      text-align: justify;\n    }\n    .takeaway {\n      background-color: #f0f8ff;\n      padding: 15px;\n      border-radius: 5px;\n      margin-bottom: 15px;\n      font-weight: 500;\n    }\n    .cta-button {\n      display: inline-block;\n      background-color: #0066cc;\n      color: #ffffff;\n      padding: 12px 30px;\n      text-decoration: none;\n      border-radius: 5px;\n      font-weight: bold;\n      margin-bottom: 15px;\n    }\n    .cta-button:hover {\n      background-color: #0052a3;\n    }\n    .hashtags {\n      color: #0066cc;\n      font-size: 14px;\n    }\n    .footer {\n      text-align: center;\n      margin-top: 40px;\n      padding-top: 20px;\n      border-top: 2px solid #e0e0e0;\n      color: #777;\n      font-size: 12px;\n    }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>🚁 Daily Drone News Digest</h1>\n      <p>Your curated update on the latest in UAV technology and drone industry news</p>\n    </div>\n`;\n\n// Array to store article data for JSON output\nconst articlesData = [];\n\n// Process each article\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i];\n  \n  // Extract data from the item\n  const title = item.title || 'Untitled Article';\n  const link = item.shortUrl || item.link || '#';\n  const image = item.image || item.enclosure?.url || 'https://via.placeholder.com/600x300/0066cc/ffffff?text=Drone+News';\n  const hook = item.hook || '';\n  const summary = item.summary || item.contentSnippet || item.description || '';\n  const takeaway = item.takeaway || '';\n  const hashtags = item.hashtags || '#DroneNews #UAV #TechUpdate';\n  \n  // Add to HTML\n  emailHtml += `\n    <div class=\"article\">\n      <h2 class=\"article-title\">${title}</h2>\n      <img src=\"${image}\" alt=\"${title}\" class=\"article-image\" onerror=\"this.src='https://via.placeholder.com/600x300/0066cc/ffffff?text=Drone+News'\">\n      ${hook ? `<div class=\"hook\">\"${hook}\"</div>` : ''}\n      <div class=\"summary\">${summary}</div>\n      ${takeaway ? `<div class=\"takeaway\"><strong>Key Takeaway:</strong> ${takeaway}</div>` : ''}\n      <a href=\"${link}\" class=\"cta-button\" target=\"_blank\">Read Full Article →</a>\n      <div class=\"hashtags\">${hashtags}</div>\n    </div>\n  `;\n  \n  // Add to articles data array\n  articlesData.push({\n    title: title,\n    link: link,\n    image: image,\n    hook: hook,\n    summary: summary,\n    takeaway: takeaway,\n    hashtags: hashtags\n  });\n}\n\n// Close HTML\nemailHtml += `\n    <div class=\"footer\">\n      <p>This is your automated daily digest of drone industry news.</p>\n      <p>Stay informed, stay ahead! 🚀</p>\n    </div>\n  </div>\n</body>\n</html>\n`;\n\n// Return the complete output\nreturn [{\n  json: {\n    emailHtml: emailHtml,\n    articles: articlesData\n  }\n}];"
+      },
+      "id": "257f6a46-08f2-4dae-95b5-ee6f960ca892",
+      "name": "Build HTML Email & JSON Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5824,
+        1280
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Add a 2-second delay between each item\nawait new Promise(resolve => setTimeout(resolve, 2000));\n\n// Return the item unchanged\nreturn $input.item;"
+      },
+      "id": "7a7e27f9-bdb7-40cf-a4f8-4d002df2ffe1",
+      "name": "Add Delay Between Requests",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5152,
+        1280
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Mock GPT-4 Summarizer - Generate structured article data\nconst item = $input.item.json;\n\n// Extract basic article info\nconst title = item.title || 'Untitled Article';\nconst link = item.link || '#';\nconst description = item.contentSnippet || item.content || item.description || '';\n\n// Generate mock 2-paragraph summary (60 words each)\nconst paragraph1 = description.substring(0, 300).trim() + '...' || 'This article discusses the latest developments in drone technology and UAV systems. The innovations highlighted showcase significant advancements in autonomous flight capabilities, sensor integration, and real-time data processing. These improvements are set to revolutionize various industries including agriculture, surveillance, and delivery services.';\n\nconst paragraph2 = 'Industry experts predict continued growth in the drone sector with enhanced regulatory frameworks supporting commercial applications. The integration of AI and machine learning is enabling smarter navigation and obstacle avoidance. This technological evolution promises safer and more efficient drone operations across multiple sectors.';\n\nconst summary = paragraph1 + '\\n\\n' + paragraph2;\n\n// Generate compelling hook\nconst hook = 'Discover how cutting-edge drone technology is transforming industries and reshaping the future of autonomous flight.';\n\n// Generate key takeaway\nconst takeaway = 'The drone industry is experiencing rapid innovation with AI-powered systems leading to safer, smarter, and more efficient UAV operations across commercial and industrial applications.';\n\n// Generate CTA\nconst cta = 'Read the full article to learn more about these groundbreaking developments in drone technology.';\n\n// Generate hashtags (must include #DroneNews #UAV #TechUpdate)\nconst hashtags = '#DroneNews #UAV #TechUpdate #Innovation #Technology';\n\n// Generate keywords\nconst keywords = ['drone technology', 'UAV systems', 'autonomous flight'];\n\n// Get image URL (use article image or fallback)\nconst image = item.enclosure?.url || item.image || 'https://images.unsplash.com/photo-1473968512647-3e447244af8f?w=800';\n\n// Use original link as shortUrl\nconst shortUrl = link;\n\n// Return structured data\nreturn {\n  json: {\n    title: title,\n    link: link,\n    shortUrl: shortUrl,\n    description: description,\n    summary: summary,\n    hook: hook,\n    takeaway: takeaway,\n    cta: cta,\n    hashtags: hashtags,\n    keywords: keywords,\n    image: image,\n    pubDate: item.pubDate || item.isoDate || new Date().toISOString(),\n    isoDate: item.isoDate || item.pubDate || new Date().toISOString(),\n    guid: item.guid || link,\n    content: item.content || description,\n    contentSnippet: item.contentSnippet || description\n  }\n};"
+      },
+      "id": "3d94de04-cee5-4d9e-ac65-a277516881c5",
+      "name": "Mock GPT-4 Summarizer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5376,
+        1280
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "aayushsonawane01@gmail.com",
+        "subject": "=Daily Drone News Digest - {{ $now.format('MMMM d, yyyy') }}",
+        "message": "={{ $json.emailHtml }}",
+        "options": {
+          "senderName": "DroneNews Bot"
+        }
+      },
+      "id": "cc35cb2f-fd1c-43c4-a5a9-1d8a05a9da5c",
+      "name": "Send Email Digest",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        6048,
+        1280
+      ],
+      "webhookId": "6c7766cf-93ba-4430-9f3e-463a3d4f3df1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "9AUq9xMkwUbTWEiK",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule 9AM IST Daily": {
+      "main": [
+        [
+          {
+            "node": "RSS Feed - Latest Drone News",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Feed - UAV Technology",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Feed - DGCA Drones India",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Feed - Latest Drone News": {
+      "main": [
+        [
+          {
+            "node": "Merge & Limit to 5 Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Feed - UAV Technology": {
+      "main": [
+        [
+          {
+            "node": "Merge & Limit to 5 Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Feed - DGCA Drones India": {
+      "main": [
+        [
+          {
+            "node": "Merge & Limit to 5 Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge & Limit to 5 Articles": {
+      "main": [
+        [
+          {
+            "node": "Add Delay Between Requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Articles ≤24h": {
+      "main": [
+        [
+          {
+            "node": "Build HTML Email & JSON Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Delay Between Requests": {
+      "main": [
+        [
+          {
+            "node": "Mock GPT-4 Summarizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock GPT-4 Summarizer": {
+      "main": [
+        [
+          {
+            "node": "Filter Articles ≤24h",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build HTML Email & JSON Output": {
+      "main": [
+        [
+          {
+            "node": "Send Email Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ca53b652-d69c-480a-8060-08e61f61956b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ee8b7a83cc6614a271883dce157cecb62ce7bcfe9a73060a23f6fed1aad33fa3"
+  },
+  "id": "ASWrOPPXtMbZshI3",
+  "tags": []
+}
